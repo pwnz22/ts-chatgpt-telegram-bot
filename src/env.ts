@@ -1,5 +1,5 @@
 import { plainToClass } from 'class-transformer';
-import { EnvironmentVarsDto } from './config/environment-vars.dto';
+import { EnvironmentVarsDto } from '../config/environment-vars.dto';
 import { validateSync } from 'class-validator';
 
 export const validateEnv = (): EnvironmentVarsDto => {
