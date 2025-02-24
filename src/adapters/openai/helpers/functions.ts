@@ -36,7 +36,7 @@ export const changeBotMood =
 
 enum SupportedModels {
   chatGpt3 = 'gpt-3.5-turbo',
-  chatGpt4 = 'gpt-4',
+  chatGpt4 = 'gpt-4o',
 }
 
 export const setChatGptModel =

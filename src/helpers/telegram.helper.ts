@@ -38,35 +38,41 @@ export const handleTelegramMessage = async (message: TelegramBot.Message) => {
     }
 
     // call openAI
-    const stringStream = await openAiClient.runPrompt(textMessage || 'Recieved empty text', {
-      chatId,
-      chatType,
-      userId,
-      userFirstName,
-    } as ChatData);
+    const stringStream = await openAiClient.runAssistantPrompt(
+      textMessage || 'Recieved empty text',
+      {
+        chatId,
+        chatType,
+        userId,
+        userFirstName,
+      } as ChatData,
+    );
 
-    logger.log('info', stringStream);
+    logger.log('info', { 'telegram.StringStream': stringStream });
+    // logger.log('info', { 'telegram.textMessage': textMessage });
 
-    const durationInMs = getRandomInt(90, 150);
+    await telegramClient.updateMessage(stringStream, chatId, messageId);
 
-    const accumulatedMessage: string[] = [];
-    for await (const chunk of collectChunksForDuration(stringStream, durationInMs)) {
-      if (chunk && chunk !== ' ') {
-        accumulatedMessage.push(chunk);
-        logger.log('info', { name: 'telegramHelper.chunk', chunk });
+    // const durationInMs = getRandomInt(90, 150);
 
-        // call Telegram
-        await telegramClient.updateMessage(chunk, chatId, messageId);
-      }
-    }
+    // const accumulatedMessage: string[] = [];
+    // for await (const chunk of collectChunksForDuration(stringStream, durationInMs)) {
+    //   if (chunk && chunk !== ' ') {
+    //     accumulatedMessage.push(chunk);
+    //     logger.log('info', { name: 'telegramHelper.chunk', chunk });
 
-    if (audioMessage) {
-      const testVoice = await openAiClient.textToAudio(
-        accumulatedMessage[accumulatedMessage.length - 1],
-      );
-      // call Telegram
-      await telegramClient.sendVoiceMessage(chatId.toString(), testVoice);
-    }
+    //     // call Telegram
+    //     await telegramClient.updateMessage(chunk, chatId, messageId);
+    //   }
+    // }
+
+    // if (audioMessage) {
+    //   const testVoice = await openAiClient.textToAudio(
+    //     accumulatedMessage[accumulatedMessage.length - 1],
+    //   );
+    //   // call Telegram
+    //   await telegramClient.sendVoiceMessage(chatId.toString(), testVoice);
+    // }
   } catch (error) {
     logger.log('error', {
       error,

@@ -22,6 +22,10 @@ export class EnvironmentVarsDto {
 
   @IsNotEmpty()
   @IsString()
+  OPEN_AI_ASSISTANT_ID!: string;
+
+  @IsNotEmpty()
+  @IsString()
   TELEGRAM_BOT_TOKEN!: string;
 
   @IsNotEmpty()

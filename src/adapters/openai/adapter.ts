@@ -26,6 +26,7 @@ export class OpenAiClient {
 
   constructor(
     public apiKey: string,
+    public assistantId: string,
     public instructions: string,
   ) {
     this.openAi = new OpenAI({ apiKey: this.apiKey });
@@ -37,8 +38,7 @@ export class OpenAiClient {
       logger.log('info', { name: 'openAi.runPrompt.input', prompt });
       const { chatId } = chatData;
       const currentMood = (await this.redisClient.get(`channel:${chatId}`)) ?? defaultMood;
-      const currentChatGptModel =
-        (await this.redisClient.get(`model:${chatId}`)) ?? 'gpt-3.5-turbo';
+      const currentChatGptModel = (await this.redisClient.get(`model:${chatId}`)) ?? 'gpt-4o';
 
       // Get the previous conversional context from redis cache
       const currentMessages = await this.preparePreviousContext(chatId.toString(), currentMood);
@@ -52,7 +52,7 @@ export class OpenAiClient {
       });
 
       const resultStream = await this.openAi.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o',
         temperature: 0.7,
         messages: currentMessages,
         stream: true,
@@ -76,7 +76,7 @@ export class OpenAiClient {
     } catch (error) {
       logger.info('error', { name: error.message });
       const errorResponse = await this.openAi.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o',
         temperature: 0.7,
         messages: [{ role: 'system', content: JSON.stringify(error) }],
       });
@@ -297,5 +297,71 @@ export class OpenAiClient {
     const buffer = Buffer.from(audioArrayBuffer);
 
     return buffer;
+  }
+
+  // Method to process chat using OpenAI Assistants
+  async runAssistantPrompt(prompt: string, chatData: ChatData): Promise<string> {
+    try {
+      const { chatId } = chatData;
+      const threadId = await this.createThreadForChat(chatId);
+
+      await this.addMessageToThread(threadId, prompt);
+      const runId = await this.runAssistant(threadId);
+      await this.waitForCompletion(threadId, runId);
+
+      const response = await this.getAssistantResponse(threadId);
+      await this.redisClient.listPush(chatId.toString(), [
+        `user:${prompt}`,
+        `assistant:${response}`,
+      ]);
+
+      return response;
+    } catch (error) {
+      logger.error('OpenAI Assistant Error:', error);
+      return 'An error occurred while processing your request.';
+    }
+  }
+
+  // Create a thread for chat if it does not exist
+  private async createThreadForChat(chatId: number): Promise<string> {
+    let threadId = await this.redisClient.get(`thread:${chatId}`);
+    if (!threadId) {
+      const thread = await this.openAi.beta.threads.create();
+      threadId = thread.id;
+      await this.redisClient.set(`thread:${chatId}`, threadId);
+    }
+    return threadId;
+  }
+
+  // Add a message to an existing thread
+  private async addMessageToThread(threadId: string, prompt: string): Promise<void> {
+    await this.openAi.beta.threads.messages.create(threadId, {
+      role: 'user',
+      content: prompt,
+    });
+  }
+
+  // Run the Assistant on a thread
+  private async runAssistant(threadId: string): Promise<string> {
+    const run = await this.openAi.beta.threads.runs.create(threadId, {
+      assistant_id: this.assistantId,
+    });
+    return run.id;
+  }
+
+  // Wait for Assistant's response
+  private async waitForCompletion(threadId: string, runId: string): Promise<void> {
+    while (true) {
+      const runStatus = await this.openAi.beta.threads.runs.retrieve(threadId, runId);
+      if (runStatus.status === 'completed') break;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+
+  // Retrieve the latest message from the Assistant
+  private async getAssistantResponse(threadId: string): Promise<string> {
+    const messages = await this.openAi.beta.threads.messages.list(threadId);
+    logger.log('info', { message122121: messages });
+    return messages.data[0]?.content[0]?.text?.value || 'No response from Assistant.';
   }
 }
