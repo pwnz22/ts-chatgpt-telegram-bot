@@ -354,14 +354,14 @@ export class OpenAiClient {
     while (true) {
       const runStatus = await this.openAi.beta.threads.runs.retrieve(threadId, runId);
       if (runStatus.status === 'completed') break;
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 
   // Retrieve the latest message from the Assistant
   private async getAssistantResponse(threadId: string): Promise<string> {
     const messages = await this.openAi.beta.threads.messages.list(threadId);
-    logger.log('info', { message122121: messages });
+    // logger.log('info', { message122121: messages });
     return messages.data[0]?.content[0]?.text?.value || 'No response from Assistant.';
   }
 }

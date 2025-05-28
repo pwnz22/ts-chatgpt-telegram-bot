@@ -66,13 +66,11 @@ export const handleTelegramMessage = async (message: TelegramBot.Message) => {
     //   }
     // }
 
-    // if (audioMessage) {
-    //   const testVoice = await openAiClient.textToAudio(
-    //     accumulatedMessage[accumulatedMessage.length - 1],
-    //   );
-    //   // call Telegram
-    //   await telegramClient.sendVoiceMessage(chatId.toString(), testVoice);
-    // }
+    if (audioMessage) {
+      const testVoice = await openAiClient.textToAudio(stringStream);
+      // call Telegram
+      await telegramClient.sendVoiceMessage(chatId.toString(), testVoice);
+    }
   } catch (error) {
     logger.log('error', {
       error,
